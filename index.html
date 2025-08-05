@@ -1,0 +1,1881 @@
+<html><head><base href="https://websim.io/location/" />
+    <meta charset="utf-8">
+    <title>多國家地址查詢與編輯系統（電腦網頁版）</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+      /* 保留原有的樣式 */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .sidebar {
+        width: 400px;
+        background-color: #f0f0f0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        transition: width 0.3s;
+      }
+      .search-container {
+        margin-bottom: 20px;
+        background-color: #e6f3ff;
+        padding: 15px;
+        border-radius: 8px;
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        resize: vertical;
+      }
+      button, select, .file-upload {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-bottom: 10px;
+        height: 40px;
+        line-height: 20px;
+        width: 100%;
+        text-align: center;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      button:hover, select:hover, .file-upload:hover {
+        background-color: #45a049;
+      }
+      #history, #importedData, #notFoundList, #favorites {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+      }
+      #history {
+        background-color: #fff0f0;
+      }
+      #importedData {
+        background-color: #f0fff0;
+      }
+      #notFoundList {
+        background-color: #fff0ff;
+      }
+      #favorites {
+        background-color: #ffffd0;
+      }
+      #history h3, #importedData h3, #notFoundList h3, #favorites h3 {
+        margin-top: 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      tr:hover {
+        background-color: #e0e0e0;
+        cursor: pointer;
+      }
+      #map {
+        flex-grow: 1;
+        transition: width 0.3s;
+      }
+      #coordinates {
+        position: absolute;
+        bottom: 10px;
+        left: 420px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 5px 10px;
+        border-radius: 4px;
+        z-index: 1000;
+        transition: left 0.3s;
+      }
+      #csvFile {
+        display: none;
+      }
+      .file-upload {
+        display: inline-block;
+      }
+      #searchStats {
+        margin-top: 10px;
+        font-weight: bold;
+      }
+      .checkbox-column {
+        width: 30px;
+      }
+      #countrySelect, #historyCountryFilter, #favoritesCountryFilter {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        height: 40px;
+      }
+      .edit-mode {
+        background-color: #ffe6e6;
+      }
+      #editInstructions {
+        display: none;
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #e6f7ff;
+        border: 1px solid #91d5ff;
+        border-radius: 4px;
+      }
+      #resizer {
+        width: 10px;
+        background-color: #ccc;
+        cursor: col-resize;
+        transition: background-color 0.3s;
+      }
+      #resizer:hover {
+        background-color: #999;
+      }
+      #toggleSidebar {
+        position: absolute;
+        top: 10px;
+        left: 410px;
+        z-index: 1000;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: left 0.3s, background-color 0.3s;
+      }
+      #toggleSidebar:hover {
+        background-color: #45a049;
+      }
+      .history-controls, .favorites-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 10px;
+      }
+      .history-controls button, .favorites-controls button {
+        padding: 5px 8px;
+        font-size: 0.8em;
+        height: 35px;
+        width: auto;
+        flex: 1;
+        min-width: 80px;
+      }
+      #editActions {
+        display: none;
+        margin-top: 10px;
+      }
+      #editActions button {
+        margin-right: 10px;
+        height: 40px;
+        width: auto;
+      }
+      #confirmEdit {
+        background-color: #4CAF50;
+      }
+      #cancelEdit {
+        background-color: #f44336;
+      }
+      #progressBar {
+        width: 100%;
+        height: 20px;
+        background-color: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+      #progressFill {
+        width: 0%;
+        height: 100%;
+        background-color: #4CAF50;
+        transition: width 0.3s ease;
+      }
+      #progressText {
+        text-align: center;
+        margin-top: 5px;
+        font-weight: bold;
+      }
+      .star-icon {
+        color: #ddd;
+        cursor: pointer;
+        font-size: 1.2em;
+      }
+      .star-icon.favorite {
+        color: gold;
+      }
+      .network-status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+      .network-online {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .network-offline {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+      .proxy-status {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+        padding: 5px;
+        margin: 5px 0;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .toggle-btn {
+        cursor: pointer;
+        font-size: 0.9em;
+        color: #666;
+        margin-left: 5px;
+      }
+      .section-content {
+        display: none;
+        margin-top: 10px;
+      }
+      .section-content.active {
+        display: block;
+      }
+      .distance-label {
+        background-color: white;
+        padding: 5px;
+        border: 2px solid red;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .distance-map-highlight { color: #d00; font-weight: bold; font-size: 1.3em; }
+    </style>
+    </head>
+    <body>
+      <div class="sidebar" id="sidebar">
+        <div class="search-container">
+          <div id="networkStatus" class="network-status network-online">
+            🌐 網絡狀態: 在線
+          </div>
+          <div id="proxyStatus" class="proxy-status" style="display: none;">
+            🔄 使用代理模式
+          </div>
+          <select id="countrySelect">
+            <option value="">選擇國家（可選）</option>
+            <option value="tw">台灣</option>
+            <option value="jp">日本</option>
+            <option value="kr">韓國</option>
+            <option value="us">美國</option>
+            <option value="ca">加拿大</option>
+            <option value="gb">英國</option>
+            <option value="fr">法國</option>
+            <option value="de">德國</option>
+            <option value="it">義大利</option>
+            <option value="es">西班牙</option>
+            <option value="au">澳洲</option>
+            <option value="nz">紐西蘭</option>
+          </select>
+          <textarea id="locations" placeholder="輸入多個地址，每行一個&#10;例如：&#10;台北101&#10;東京鐵塔&#10;紐約時代廣場"></textarea>
+          <button onclick="searchLocations()">查詢</button>
+          <button onclick="retryFailedQueries()" id="retryBtn" style="display: none; background-color: #ff9800;">重試失敗的查詢</button>
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">
+            💡 提示：選擇國家可以提高查詢準確性，但會限制結果範圍
+          </div>
+          <label for="csvFile" class="file-upload">
+            匯入CSV
+            <input type="file" id="csvFile" accept=".csv" onchange="importCSV(this)">
+          </label>
+          <button onclick="clearImportedData()">清空匯入的CSV數據</button>
+        </div>
+        <div id="progressBar">
+          <div id="progressFill"></div>
+        </div>
+        <div id="progressText"></div>
+        <div id="editInstructions">
+          編輯模式已開啟。點擊歷史記錄或我的最愛項目，然後在地圖上點擊新的位置來更新GPS坐標。
+        </div>
+        <div id="editActions">
+          <button id="confirmEdit" onclick="confirmEdit()">確定更新位置</button>
+          <button id="cancelEdit" onclick="cancelEdit()">取消更新位置</button>
+        </div>
+        <div id="searchStats"></div>
+        <div id="errorLog" style="display: none; margin-top: 10px; padding: 10px; background-color: #ffe6e6; border: 1px solid #ff9999; border-radius: 4px;">
+          <h4>錯誤日誌</h4>
+          <div id="errorMessages"></div>
+        </div>
+        <div id="importedData">
+          <h3>匯入的CSV數據 <span class="toggle-btn" onclick="toggleSection('importedData')">[-]</span></h3>
+          <div class="section-content">
+            <p id="fileName"></p>
+            <table id="csvContent">
+              <thead>
+                <tr>
+                  <th>地點名稱</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="history">
+          <h3>查詢歷史 <span class="toggle-btn" onclick="toggleSection('history')">[-]</span></h3>
+          <div class="section-content">
+            <div class="history-controls">
+              <button onclick="deleteSelectedHistory()">刪除選中歷史</button>
+              <button onclick="clearAllHistory()">清空所有歷史</button>
+              <button onclick="showAllHistoryOnMap()">顯示所有歷史</button>
+              <button onclick="exportHistoryToCSV()">匯出歷史CSV</button>
+              <button onclick="addAllHistoryToFavorites()">全部加為最愛</button>
+              <button id="editModeBtn" onclick="toggleEditMode()">編輯模式</button>
+              <button id="addLocationBtn" onclick="enableAddLocationMode()">新增地點模式</button>
+              <button id="distanceBtn" onclick="enableDistanceMode()">距離測量模式</button>
+              <button id="rangeSearchBtn" onclick="enableRangeSearchMode()">範圍搜尋模式</button>
+            </div>
+            <select id="historyCountryFilter" onchange="filterHistoryByCountry()">
+              <option value="">顯示所有國家</option>
+              <option value="tw">台灣</option>
+              <option value="jp">日本</option>
+              <option value="kr">韓國</option>
+              <option value="us">美國</option>
+              <option value="ca">加拿大</option>
+              <option value="gb">英國</option>
+              <option value="fr">法國</option>
+              <option value="it">義大利</option>
+              <option value="es">西班牙</option>
+              <option value="au">澳洲</option>
+              <option value="nz">紐西蘭</option>
+            </select>
+            <table id="historyList">
+              <thead>
+                <tr>
+                  <th class="checkbox-column"><input type="checkbox" id="selectAll" onclick="toggleAllCheckboxes()"></th>
+                  <th>編號</th>
+                  <th>CSV原始資料</th>
+                  <th>地點名稱</th>
+                  <th>緯度</th>
+                  <th>經度</th>
+                  <th>國家</th>
+                  <th>最愛</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="favorites">
+          <h3>我的最愛 <span class="toggle-btn" onclick="toggleSection('favorites')">[-]</span></h3>
+          <div class="section-content">
+            <div class="favorites-controls">
+              <button onclick="deleteSelectedFavorites()">刪除選中最愛</button>
+              <button onclick="clearAllFavorites()">清空所有最愛</button>
+              <button onclick="showAllFavoritesOnMap()">顯示所有最愛</button>
+            </div>
+            <select id="favoritesCountryFilter" onchange="filterFavoritesByCountry()">
+              <option value="">顯示所有國家</option>
+              <option value="tw">台灣</option>
+              <option value="jp">日本</option>
+              <option value="kr">韓國</option>
+              <option value="us">美國</option>
+              <option value="ca">加拿大</option>
+              <option value="gb">英國</option>
+              <option value="fr">法國</option>
+              <option value="it">義大利</option>
+              <option value="es">西班牙</option>
+              <option value="au">澳洲</option>
+              <option value="nz">紐西蘭</option>
+            </select>
+            <table id="favoritesList">
+              <thead>
+                <tr>
+                  <th class="checkbox-column"><input type="checkbox" id="selectAllFavorites" onclick="toggleAllFavoritesCheckboxes()"></th>
+                  <th>編號</th>
+                  <th>CSV原始資料</th>
+                  <th>地點名稱</th>
+                  <th>緯度</th>
+                  <th>經度</th>
+                  <th>國家</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="notFoundList">
+          <h3>查詢不到的地點</h3>
+          <ul></ul>
+        </div>
+      </div>
+      <div id="resizer"></div>
+      <div id="map"></div>
+      <div id="coordinates"></div>
+      <button id="toggleSidebar" onclick="toggleSidebar()">隱藏側欄</button>
+    
+      <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+      <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+      <script>
+        // 網絡配置
+        const PROXY_URLS = [
+          'https://cors-anywhere.herokuapp.com/',
+          'https://api.allorigins.win/raw?url=',
+          'https://thingproxy.freeboard.io/fetch/'
+        ];
+        let currentProxyIndex = 0;
+        let isOnline = navigator.onLine;
+        let useProxy = false;
+
+        // 離線數據庫
+        const offlineDatabase = {
+          '台北101': { lat: 25.0330, lng: 121.5654, name: '台北101', country: '台灣' },
+          'taipei': { lat: 25.0330, lng: 121.5654, name: 'Taipei', country: 'Taiwan' },
+          '東京鐵塔': { lat: 35.6586, lng: 139.7454, name: '東京鐵塔', country: '日本' },
+          'tokyo tower': { lat: 35.6586, lng: 139.7454, name: 'Tokyo Tower', country: 'Japan' },
+          '紐約時代廣場': { lat: 40.7580, lng: -73.9855, name: '紐約時代廣場', country: '美國' },
+          'times square': { lat: 40.7580, lng: -73.9855, name: 'Times Square', country: 'USA' },
+          '巴黎鐵塔': { lat: 48.8584, lng: 2.2945, name: '巴黎鐵塔', country: '法國' },
+          'eiffel tower': { lat: 48.8584, lng: 2.2945, name: 'Eiffel Tower', country: 'France' },
+          '倫敦大笨鐘': { lat: 51.4994, lng: -0.1245, name: '倫敦大笨鐘', country: '英國' },
+          'big ben': { lat: 51.4994, lng: -0.1245, name: 'Big Ben', country: 'UK' }
+        };
+
+        // 初始化地圖和變量
+        let map = L.map('map').setView([23.5, 121], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let markers = [];
+        let geocoder = L.Control.Geocoder.nominatim();
+        let history = JSON.parse(localStorage.getItem('searchHistory')) || [];
+        let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+        const coordinatesDiv = document.getElementById('coordinates');
+        const notFoundList = document.getElementById('notFoundList').getElementsByTagName('ul')[0];
+        let editMode = false;
+        let selectedHistoryIndex = -1;
+        let selectedFavoriteIndex = -1;
+        let sidebarVisible = true;
+        let tempMarker = null;
+        let originalLocation = null;
+        let failedQueries = [];
+        let addLocationMode = false; // 新增地點模式
+        let floatingAddMarker = null; // 新增地點時的浮動 marker
+        let distanceMode = false; // 距離測量模式
+        let distanceMarkers = []; // 距離測量標記
+        let distancePolyline = null; // 距離測量線條
+        let floatingDistanceLine = null; // 浮動線條
+        let floatingDistanceLabel = null; // 浮動距離標籤
+        let distanceStartLatLng = null; // 距離測量起點
+        let rangeSearchMode = false; // 範圍搜尋模式
+        let rangeCircle = null; // 範圍搜尋圓圈
+        let rangeCenter = null; // 範圍中心點
+        let floatingRangeCircle = null; // 浮動圓形
+        let floatingRangeLabel = null; // 浮動半徑標籤
+        let rangeStep = 0; // 0:未開始, 1:已選中心, 等待半徑
+        let rangeCenterMarker = null; // 中心點標記
+
+        const countryNames = {
+          'tw': '台灣',
+          'jp': '日本',
+          'kr': '韓國',
+          'us': '美國',
+          'ca': '加拿大',
+          'gb': '英國',
+          'fr': '法國',
+          'de': '德國',
+          'it': '義大利',
+          'es': '西班牙',
+          'au': '澳洲',
+          'nz': '紐西蘭'
+        };
+
+        // 網絡狀態監控
+        function updateNetworkStatus() {
+          const statusDiv = document.getElementById('networkStatus');
+          const proxyDiv = document.getElementById('proxyStatus');
+          
+          if (isOnline) {
+            statusDiv.className = 'network-status network-online';
+            statusDiv.innerHTML = '🌐 網絡狀態: 在線';
+            proxyDiv.style.display = useProxy ? 'block' : 'none';
+          } else {
+            statusDiv.className = 'network-status network-offline';
+            statusDiv.innerHTML = '📴 網絡狀態: 離線 (使用本地數據)';
+            proxyDiv.style.display = 'none';
+          }
+        }
+
+        // 代理請求函數
+        async function fetchWithProxy(url, options = {}) {
+          if (!isOnline) {
+            throw new Error('網絡離線');
+          }
+
+          // 先嘗試直接請求
+          try {
+            const response = await fetch(url, {
+              ...options,
+              headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'AddressTestApp/1.0',
+                ...options.headers
+              }
+            });
+            
+            if (response.ok) {
+              return response;
+            }
+          } catch (error) {
+            console.log('直接請求失敗，嘗試代理');
+          }
+
+          // 使用代理
+          useProxy = true;
+          updateNetworkStatus();
+          
+          for (let i = 0; i < PROXY_URLS.length; i++) {
+            const proxyUrl = PROXY_URLS[(currentProxyIndex + i) % PROXY_URLS.length];
+            try {
+              const response = await fetch(proxyUrl + url, {
+                ...options,
+                headers: {
+                  'Accept': 'application/json',
+                  'Origin': window.location.origin,
+                  ...options.headers
+                }
+              });
+              
+              if (response.ok) {
+                currentProxyIndex = (currentProxyIndex + i) % PROXY_URLS.length;
+                return response;
+              }
+            } catch (error) {
+              console.log(`代理 ${i + 1} 失敗:`, error);
+            }
+          }
+          
+          throw new Error('所有代理都失敗');
+        }
+
+        // 離線查詢函數
+        function searchOffline(query) {
+          const searchTerm = query.toLowerCase();
+          
+          // 精確匹配
+          if (offlineDatabase[searchTerm]) {
+            return offlineDatabase[searchTerm];
+          }
+          
+          // 模糊匹配
+          for (const [key, value] of Object.entries(offlineDatabase)) {
+            if (key.includes(searchTerm) || value.name.toLowerCase().includes(searchTerm)) {
+              return value;
+            }
+          }
+          
+          return null;
+        }
+
+        // 格式化地址顯示（從大到小）
+        function formatAddressDisplay(result) {
+          const address = result.address;
+          if (!address) return result.display_name;
+          
+          const addressParts = [];
+          
+          // 按照從大到小的順序添加地址組件
+          if (address.country) addressParts.push(address.country);
+          if (address.postcode) addressParts.push(address.postcode);
+          if (address.state) addressParts.push(address.state);
+          if (address.county) addressParts.push(address.county);
+          if (address.city) addressParts.push(address.city);
+          if (address.suburb) addressParts.push(address.suburb);
+          if (address.neighbourhood) addressParts.push(address.neighbourhood);
+          if (address.road) addressParts.push(address.road);
+          if (address.house_number) addressParts.push(address.house_number);
+          
+          // 如果沒有詳細地址信息，使用原始顯示名稱
+          if (addressParts.length === 0) {
+            return result.display_name;
+          }
+          
+          return addressParts.join(',');
+        }
+
+        // 主要查詢函數
+        async function searchAddress(query, countryCode = '') {
+          try {
+            // 構建 API URL
+            const params = new URLSearchParams({
+              format: 'json',
+              q: query,
+              limit: '1',
+              addressdetails: '1'
+            });
+            
+            if (countryCode) {
+              params.append('countrycodes', countryCode);
+            }
+            
+            const url = `https://nominatim.openstreetmap.org/search?${params}`;
+            
+            const response = await fetchWithProxy(url);
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+              const result = data[0];
+              return {
+                name: formatAddressDisplay(result), // 使用格式化地址
+                lat: parseFloat(result.lat),
+                lng: parseFloat(result.lon),
+                country: result.address?.country_code || '',
+                type: result.type,
+                importance: result.importance
+              };
+            }
+            
+            return null;
+          } catch (error) {
+            console.log('在線查詢失敗，嘗試離線查詢:', error);
+            
+            // 離線查詢
+            const offlineResult = searchOffline(query);
+            if (offlineResult) {
+              return {
+                name: offlineResult.name,
+                lat: offlineResult.lat,
+                lng: offlineResult.lng,
+                country: offlineResult.country,
+                type: 'offline',
+                importance: 0.5
+              };
+            }
+            
+            throw error;
+          }
+        }
+
+        // 修改後的查詢函數
+        async function searchLocations() {
+          const queries = document.getElementById('locations').value.split('\n').filter(q => q.trim() !== '');
+          const countryCode = document.getElementById('countrySelect').value;
+          
+          if (queries.length === 0) {
+            alert('請輸入至少一個地址');
+            return;
+          }
+          
+          clearMarkers();
+          notFoundList.innerHTML = '';
+          failedQueries = [];
+          
+          const bounds = L.latLngBounds();
+          let processedCount = 0;
+          let foundCount = 0;
+          let notFoundCount = 0;
+          let errorCount = 0;
+
+          updateProgress(0, queries.length);
+
+          for (let i = 0; i < queries.length; i++) {
+            const query = queries[i];
+            
+            try {
+              const result = await searchAddress(query, countryCode);
+              
+              if (result) {
+                foundCount++;
+                const marker = L.marker([result.lat, result.lng]).addTo(map);
+                markers.push(marker);
+                marker.bindPopup(`${i + 1}. ${result.name}`);
+                marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(result); });
+                bounds.extend([result.lat, result.lng]);
+
+                history.unshift({ 
+                  name: result.name, 
+                  latlng: { lat: result.lat, lng: result.lng }, 
+                  countryCode: result.country,
+                  originalQuery: query // 保存原始查詢資料
+                });
+              } else {
+                notFoundCount++;
+                const li = document.createElement('li');
+                li.textContent = `${i + 1}. ${query} (查詢不到結果)`;
+                notFoundList.appendChild(li);
+                failedQueries.push({ query, index: i, reason: '查詢不到結果' });
+              }
+            } catch (error) {
+              errorCount++;
+              console.error(`查詢地址時發生錯誤: ${query}`, error);
+              const li = document.createElement('li');
+              li.textContent = `${i + 1}. ${query} (查詢錯誤: ${error.message})`;
+              li.style.color = 'red';
+              notFoundList.appendChild(li);
+              failedQueries.push({ query, index: i, reason: '查詢錯誤' });
+            }
+            
+            processedCount++;
+            updateProgress(processedCount, queries.length);
+            
+            // 添加延遲避免 API 限制
+            if (i < queries.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          finishSearch(bounds, queries.length, foundCount, notFoundCount, errorCount);
+        }
+
+        // 其他函數保持不變...
+        function updateProgress(current, total) {
+          const progressFill = document.getElementById('progressFill');
+          const progressText = document.getElementById('progressText');
+          const percentage = (current / total) * 100;
+          progressFill.style.width = `${percentage}%`;
+          progressText.textContent = `進度: ${current}/${total} (${percentage.toFixed(1)}%)`;
+        }
+
+        function finishSearch(bounds, totalCount, foundCount, notFoundCount, errorCount) {
+          if (markers.length > 0) {
+            map.fitBounds(bounds);
+          }
+          // 移除歷史記錄限制，保留所有歷史
+          // history = history.slice(0, 10);
+          localStorage.setItem('searchHistory', JSON.stringify(history));
+          updateHistoryList();
+          updateSearchStats(totalCount, foundCount, notFoundCount, errorCount);
+        }
+
+        function updateSearchStats(totalCount, foundCount, notFoundCount, errorCount) {
+          const statsDiv = document.getElementById('searchStats');
+          let statsHTML = `查詢總數: ${totalCount}<br>查詢到: ${foundCount}<br>查詢不到: ${notFoundCount}`;
+          if (errorCount > 0) {
+            statsHTML += `<br>錯誤: ${errorCount}`;
+            document.getElementById('errorLog').style.display = 'block';
+          }
+          statsDiv.innerHTML = statsHTML;
+          
+          const retryBtn = document.getElementById('retryBtn');
+          if (failedQueries.length > 0) {
+            retryBtn.style.display = 'block';
+          } else {
+            retryBtn.style.display = 'none';
+          }
+        }
+
+        function retryFailedQueries() {
+          if (failedQueries.length === 0) {
+            alert('沒有失敗的查詢需要重試');
+            return;
+          }
+          
+          const queries = failedQueries.map(fq => fq.query);
+          document.getElementById('locations').value = queries.join('\n');
+          searchLocations();
+        }
+
+        // 保留原有的其他函數...
+        function updateHistoryList(filter = '') {
+          const historyList = document.getElementById('historyList').getElementsByTagName('tbody')[0];
+          historyList.innerHTML = '';
+          history.forEach((item, index) => {
+            if (filter === '' || item.countryCode === filter) {
+              const row = historyList.insertRow();
+              const checkboxCell = row.insertCell(0);
+              const checkbox = document.createElement('input');
+              checkbox.type = 'checkbox';
+              checkbox.className = 'history-checkbox';
+              checkboxCell.appendChild(checkbox);
+              row.insertCell(1).textContent = index + 1;
+              row.insertCell(2).textContent = item.originalQuery || '-';
+              row.insertCell(3).textContent = item.name;
+              row.insertCell(4).textContent = item.latlng.lat.toFixed(6);
+              row.insertCell(5).textContent = item.latlng.lng.toFixed(6);
+              row.insertCell(6).textContent = countryNames[item.countryCode] || '未知';
+              const favoriteCell = row.insertCell(7);
+              const starIcon = document.createElement('span');
+              starIcon.className = 'star-icon' + (favorites.some(f => f.name === item.name) ? ' favorite' : '');
+              starIcon.textContent = '★';
+              starIcon.onclick = (e) => {
+                e.stopPropagation();
+                toggleFavorite(item);
+              };
+              favoriteCell.appendChild(starIcon);
+              // 顯示地圖標誌
+              const mapIcon = document.createElement('span');
+              mapIcon.textContent = markers.some(m => m.getLatLng().lat === item.latlng.lat && m.getLatLng().lng === item.latlng.lng) ? '📍' : '';
+              favoriteCell.appendChild(mapIcon);
+              // 新增：checkbox 選中時自動顯示/移除地圖標記
+              checkbox.addEventListener('change', function() {
+                if (checkbox.checked) {
+                  // 顯示該地點
+                  const marker = L.marker(item.latlng).addTo(map);
+                  marker.bindPopup(item.name);
+                  marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+                  markers.push(marker);
+                } else {
+                  // 移除該地點
+                  const idx = markers.findIndex(m => m.getLatLng().lat === item.latlng.lat && m.getLatLng().lng === item.latlng.lng);
+                  if (idx !== -1) {
+                    map.removeLayer(markers[idx]);
+                    markers.splice(idx, 1);
+                  }
+                }
+              });
+              row.onclick = (e) => {
+                if (e.target.type !== 'checkbox' && e.target.className.indexOf('star-icon') === -1) {
+                  if (editMode) {
+                    selectHistoryItem(index, row);
+                  } else {
+                    showLocationFromHistory(index);
+                  }
+                }
+              };
+            }
+          });
+          updateFavoritesList();
+        }
+
+        function updateFavoritesList(filter = '') {
+          const favoritesList = document.getElementById('favoritesList').getElementsByTagName('tbody')[0];
+          favoritesList.innerHTML = '';
+          favorites.forEach((item, index) => {
+            if (filter === '' || item.countryCode === filter) {
+              const row = favoritesList.insertRow();
+              const checkboxCell = row.insertCell(0);
+              const checkbox = document.createElement('input');
+              checkbox.type = 'checkbox';
+              checkbox.className = 'favorite-checkbox';
+              checkboxCell.appendChild(checkbox);
+              row.insertCell(1).textContent = index + 1;
+              row.insertCell(2).textContent = item.originalQuery || '-';
+              row.insertCell(3).textContent = item.name;
+              row.insertCell(4).textContent = item.latlng.lat.toFixed(6);
+              row.insertCell(5).textContent = item.latlng.lng.toFixed(6);
+              row.insertCell(6).textContent = countryNames[item.countryCode] || '未知';
+              // 顯示地圖標誌
+              const mapIcon = document.createElement('span');
+              mapIcon.textContent = markers.some(m => m.getLatLng().lat === item.latlng.lat && m.getLatLng().lng === item.latlng.lng) ? '📍' : '';
+              row.appendChild(mapIcon);
+              // 新增：checkbox 選中時自動顯示/移除地圖標記
+              checkbox.addEventListener('change', function() {
+                if (checkbox.checked) {
+                  const marker = L.marker(item.latlng).addTo(map);
+                  marker.bindPopup(item.name);
+                  marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+                  markers.push(marker);
+                } else {
+                  const idx = markers.findIndex(m => m.getLatLng().lat === item.latlng.lat && m.getLatLng().lng === item.latlng.lng);
+                  if (idx !== -1) {
+                    map.removeLayer(markers[idx]);
+                    markers.splice(idx, 1);
+                  }
+                }
+              });
+              row.onclick = (e) => {
+                if (e.target.type !== 'checkbox') {
+                  if (editMode) {
+                    selectFavoriteItem(index, row);
+                  } else {
+                    showLocationFromFavorites(index);
+                  }
+                }
+              };
+            }
+          });
+        }
+
+        function toggleFavorite(item) {
+          const existingIndex = favorites.findIndex(f => f.name === item.name);
+          if (existingIndex === -1) {
+            favorites.push({ ...item });
+          } else {
+            favorites.splice(existingIndex, 1);
+          }
+          localStorage.setItem('favorites', JSON.stringify(favorites));
+          updateHistoryList(document.getElementById('historyCountryFilter').value);
+        }
+
+        function showLocationFromHistory(index) {
+          const item = history[index];
+          showLocation(item);
+        }
+
+        function showLocationFromFavorites(index) {
+          const item = favorites[index];
+          showLocation(item);
+        }
+
+        function showLocation(item) {
+          clearMarkers();
+          const marker = L.marker(item.latlng).addTo(map);
+          markers.push(marker);
+          marker.bindPopup(item.name);
+          marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+          map.setView(item.latlng, 15);
+          updateCoordinates(item.latlng);
+        }
+
+        function updateCoordinates(latlng) {
+          coordinatesDiv.textContent = `緯度: ${latlng.lat.toFixed(6)}, 經度: ${latlng.lng.toFixed(6)}`;
+        }
+
+        function clearMarkers() {
+          markers.forEach(marker => map.removeLayer(marker));
+          markers = [];
+        }
+
+        // 網絡事件監聽
+        window.addEventListener('online', () => {
+          isOnline = true;
+          updateNetworkStatus();
+        });
+
+        window.addEventListener('offline', () => {
+          isOnline = false;
+          updateNetworkStatus();
+        });
+
+        // 初始化
+        updateNetworkStatus();
+        updateHistoryList();
+        updateFavoritesList();
+
+        // 保留其他必要的函數...
+        function importCSV(input) {
+          const file = input.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              try {
+                const content = e.target.result;
+                const lines = content.split('\n');
+                const queries = lines.slice(1).map(line => {
+                  const parts = line.split(',');
+                  return parts[0] ? parts[0].trim() : '';
+                }).filter(q => q !== '');
+                
+                if (queries.length === 0) {
+                  alert('CSV 文件中沒有找到有效的地址數據');
+                  return;
+                }
+                
+                document.getElementById('fileName').textContent = `已匯入檔案: ${file.name} (${queries.length} 個地址)`;
+                
+                const csvContent = document.getElementById('csvContent').getElementsByTagName('tbody')[0];
+                csvContent.innerHTML = '';
+                queries.forEach(query => {
+                  const row = csvContent.insertRow();
+                  row.insertCell(0).textContent = query;
+                });
+                
+                const countryCode = document.getElementById('countrySelect').value;
+                document.getElementById('locations').value = queries.join('\n');
+                searchLocations();
+              } catch (error) {
+                console.error('讀取 CSV 文件時發生錯誤:', error);
+                alert('讀取 CSV 文件時發生錯誤: ' + error.message);
+              }
+            };
+            reader.onerror = function() {
+              alert('讀取文件時發生錯誤');
+            };
+            reader.readAsText(file);
+          }
+        }
+
+        function clearImportedData() {
+          document.getElementById('fileName').textContent = '';
+          document.getElementById('csvContent').getElementsByTagName('tbody')[0].innerHTML = '';
+          document.getElementById('csvFile').value = '';
+        }
+
+        // 其他必要的函數...
+        function deleteSelectedHistory() {
+          const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+          const indicesToDelete = Array.from(checkboxes).map(checkbox => 
+            parseInt(checkbox.parentElement.nextElementSibling.textContent) - 1
+          ).sort((a, b) => b - a);
+
+          indicesToDelete.forEach(index => {
+            history.splice(index, 1);
+          });
+
+          localStorage.setItem('searchHistory', JSON.stringify(history));
+          updateHistoryList();
+          clearMarkers();
+        }
+
+        function clearAllHistory() {
+          history = [];
+          localStorage.removeItem('searchHistory');
+          updateHistoryList();
+          clearMarkers();
+        }
+
+        // 修改 toggleAllCheckboxes
+        function toggleAllCheckboxes() {
+          const selectAll = document.getElementById('selectAll');
+          const checkboxes = document.querySelectorAll('.history-checkbox');
+          checkboxes.forEach((checkbox, idx) => {
+            checkbox.checked = selectAll.checked;
+            // 觸發 change 事件，讓地圖標記自動顯示/移除
+            checkbox.dispatchEvent(new Event('change'));
+          });
+        }
+
+        // 修改 toggleAllFavoritesCheckboxes
+        function toggleAllFavoritesCheckboxes() {
+          const selectAllFavorites = document.getElementById('selectAllFavorites');
+          const checkboxes = document.querySelectorAll('.favorite-checkbox');
+          checkboxes.forEach((checkbox, idx) => {
+            checkbox.checked = selectAllFavorites.checked;
+            checkbox.dispatchEvent(new Event('change'));
+          });
+        }
+
+        // 新增：顯示所有選中的歷史記錄地點
+        function showSelectedHistoryLocations() {
+          const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+          if (checkboxes.length === 0) {
+            alert('請先選擇要顯示的歷史記錄項目');
+            return;
+          }
+          
+          clearMarkers();
+          const bounds = L.latLngBounds();
+          
+          checkboxes.forEach(checkbox => {
+            const row = checkbox.closest('tr');
+            const index = parseInt(row.cells[1].textContent) - 1;
+            const item = history[index];
+            
+            const marker = L.marker(item.latlng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(`${index + 1}. ${item.name}`);
+            marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+            bounds.extend(item.latlng);
+          });
+          
+          if (markers.length > 0) {
+            map.fitBounds(bounds);
+          }
+        }
+
+        // 新增：顯示所有選中的最愛地點
+        function showSelectedFavoriteLocations() {
+          const checkboxes = document.querySelectorAll('.favorite-checkbox:checked');
+          if (checkboxes.length === 0) {
+            alert('請先選擇要顯示的最愛項目');
+            return;
+          }
+          
+          clearMarkers();
+          const bounds = L.latLngBounds();
+          
+          checkboxes.forEach(checkbox => {
+            const row = checkbox.closest('tr');
+            const index = parseInt(row.cells[1].textContent) - 1;
+            const item = favorites[index];
+            
+            const marker = L.marker(item.latlng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(`${index + 1}. ${item.name}`);
+            marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+            bounds.extend(item.latlng);
+          });
+          
+          if (markers.length > 0) {
+            map.fitBounds(bounds);
+          }
+        }
+
+        // 新增：匯出歷史記錄為CSV
+        function exportHistoryToCSV() {
+          if (history.length === 0) {
+            alert('沒有歷史記錄可以匯出');
+            return;
+          }
+          
+          const csvContent = "data:text/csv;charset=utf-8," 
+            + "Name,Latitude,Longitude,Country,OriginalQuery\n"
+            + history.map(h => `"${h.name}",${h.latlng.lat},${h.latlng.lng},${countryNames[h.countryCode] || ''},"${h.originalQuery || ''}"`).join("\n");
+          
+          const encodedUri = encodeURI(csvContent);
+          const link = document.createElement("a");
+          link.setAttribute("href", encodedUri);
+          link.setAttribute("download", "search_history.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
+        function toggleEditMode() {
+          editMode = !editMode;
+          const editModeBtn = document.getElementById('editModeBtn');
+          const editInstructions = document.getElementById('editInstructions');
+          const editActions = document.getElementById('editActions');
+          if (editMode) {
+            editModeBtn.textContent = '退出編輯模式';
+            editModeBtn.style.backgroundColor = '#ff4d4d';
+            editInstructions.style.display = 'block';
+            editActions.style.display = 'block';
+            map.on('click', updateLocationOnMap);
+          } else {
+            editModeBtn.textContent = '編輯模式';
+            editModeBtn.style.backgroundColor = '#4CAF50';
+            editInstructions.style.display = 'none';
+            editActions.style.display = 'none';
+            map.off('click', updateLocationOnMap);
+            selectedHistoryIndex = -1;
+            selectedFavoriteIndex = -1;
+            clearMarkers();
+            updateHistoryList();
+            updateFavoritesList();
+          }
+        }
+
+        function selectHistoryItem(index, row) {
+          if (selectedHistoryIndex !== -1) {
+            const prevSelectedRow = document.querySelector(`#historyList tbody tr:nth-child(${selectedHistoryIndex + 1})`);
+            if (prevSelectedRow) {
+              prevSelectedRow.classList.remove('edit-mode');
+            }
+          }
+          selectedHistoryIndex = index;
+          selectedFavoriteIndex = -1;
+          row.classList.add('edit-mode');
+          showLocationFromHistory(index);
+          originalLocation = {...history[index].latlng};
+        }
+
+        function selectFavoriteItem(index, row) {
+          if (selectedFavoriteIndex !== -1) {
+            const prevSelectedRow = document.querySelector(`#favoritesList tbody tr:nth-child(${selectedFavoriteIndex + 1})`);
+            if (prevSelectedRow) {
+              prevSelectedRow.classList.remove('edit-mode');
+            }
+          }
+          selectedFavoriteIndex = index;
+          selectedHistoryIndex = -1;
+          row.classList.add('edit-mode');
+          showLocationFromFavorites(index);
+          originalLocation = {...favorites[index].latlng};
+        }
+
+        function updateLocationOnMap(e) {
+          if (selectedHistoryIndex !== -1 || selectedFavoriteIndex !== -1) {
+            const newLatLng = e.latlng;
+            if (tempMarker) {
+              map.removeLayer(tempMarker);
+            }
+            tempMarker = L.marker(newLatLng).addTo(map);
+            tempMarker.bindPopup(`新位置: ${newLatLng.lat.toFixed(6)}, ${newLatLng.lng.toFixed(6)}`).openPopup();
+            updateCoordinates(newLatLng);
+          }
+        }
+
+        function confirmEdit() {
+          if (selectedHistoryIndex !== -1 && tempMarker) {
+            const newLatLng = tempMarker.getLatLng();
+            history[selectedHistoryIndex].latlng = newLatLng;
+            const favoriteIndex = favorites.findIndex(f => f.name === history[selectedHistoryIndex].name);
+            if (favoriteIndex !== -1) {
+              favorites[favoriteIndex].latlng = newLatLng;
+            }
+            localStorage.setItem('searchHistory', JSON.stringify(history));
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            updateHistoryList();
+            updateFavoritesList();
+            clearMarkers();
+            const marker = L.marker(newLatLng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(history[selectedHistoryIndex].name).openPopup();
+            updateCoordinates(newLatLng);
+            map.removeLayer(tempMarker);
+            tempMarker = null;
+          } else if (selectedFavoriteIndex !== -1 && tempMarker) {
+            const newLatLng = tempMarker.getLatLng();
+            favorites[selectedFavoriteIndex].latlng = newLatLng;
+            const historyIndex = history.findIndex(h => h.name === favorites[selectedFavoriteIndex].name);
+            if (historyIndex !== -1) {
+              history[historyIndex].latlng = newLatLng;
+            }
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            localStorage.setItem('searchHistory', JSON.stringify(history));
+            updateFavoritesList();
+            updateHistoryList();
+            clearMarkers();
+            const marker = L.marker(newLatLng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(favorites[selectedFavoriteIndex].name).openPopup();
+            updateCoordinates(newLatLng);
+            map.removeLayer(tempMarker);
+            tempMarker = null;
+          }
+        }
+
+        function cancelEdit() {
+          if (selectedHistoryIndex !== -1) {
+            if (tempMarker) {
+              map.removeLayer(tempMarker);
+              tempMarker = null;
+            }
+            showLocationFromHistory(selectedHistoryIndex);
+          } else if (selectedFavoriteIndex !== -1) {
+            if (tempMarker) {
+              map.removeLayer(tempMarker);
+              tempMarker = null;
+            }
+            showLocationFromFavorites(selectedFavoriteIndex);
+          }
+          updateCoordinates(originalLocation);
+        }
+
+        function filterHistoryByCountry() {
+          const filter = document.getElementById('historyCountryFilter').value;
+          updateHistoryList(filter);
+        }
+
+        function filterFavoritesByCountry() {
+          const filter = document.getElementById('favoritesCountryFilter').value;
+          updateFavoritesList(filter);
+        }
+
+        function deleteSelectedFavorites() {
+          const checkboxes = document.querySelectorAll('.favorite-checkbox:checked');
+          const indicesToDelete = Array.from(checkboxes).map(checkbox => 
+            parseInt(checkbox.parentElement.nextElementSibling.textContent) - 1
+          ).sort((a, b) => b - a);
+
+          indicesToDelete.forEach(index => {
+            favorites.splice(index, 1);
+          });
+
+          localStorage.setItem('favorites', JSON.stringify(favorites));
+          updateFavoritesList();
+          updateHistoryList();
+          clearMarkers();
+        }
+
+        function clearAllFavorites() {
+          favorites = [];
+          localStorage.removeItem('favorites');
+          updateFavoritesList();
+          updateHistoryList();
+          clearMarkers();
+        }
+
+        function exportFavoritesToCSV() {
+          const csvContent = "data:text/csv;charset=utf-8," 
+            + "Name,Latitude,Longitude,Country,OriginalQuery\n"
+            + favorites.map(f => `"${f.name}",${f.latlng.lat},${f.latlng.lng},${countryNames[f.countryCode] || ''},"${f.originalQuery || ''}"`).join("\n");
+          
+          const encodedUri = encodeURI(csvContent);
+          const link = document.createElement("a");
+          link.setAttribute("href", encodedUri);
+          link.setAttribute("download", "favorites.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
+        function toggleSidebar() {
+          const sidebar = document.getElementById('sidebar');
+          const toggleBtn = document.getElementById('toggleSidebar');
+          const coordinatesDiv = document.getElementById('coordinates');
+
+          sidebarVisible = !sidebarVisible;
+          
+          if (sidebarVisible) {
+            sidebar.style.width = '400px';
+            toggleBtn.style.left = '410px';
+            toggleBtn.textContent = '隱藏側欄';
+            coordinatesDiv.style.left = '420px';
+            map.invalidateSize();
+          } else {
+            sidebar.style.width = '0';
+            toggleBtn.style.left = '10px';
+            toggleBtn.textContent = '顯示側欄';
+            coordinatesDiv.style.left = '20px';
+            map.invalidateSize();
+          }
+        }
+
+        // 添加 resize 功能
+        const resizer = document.getElementById('resizer');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+          isResizing = true;
+          document.addEventListener('mousemove', resize);
+          document.addEventListener('mouseup', stopResize);
+        });
+
+        function resize(e) {
+          if (isResizing) {
+            const sidebar = document.getElementById('sidebar');
+            const newWidth = e.clientX - sidebar.getBoundingClientRect().left;
+            if (newWidth > 200 && newWidth < window.innerWidth - 200) {
+              sidebar.style.width = newWidth + 'px';
+              document.getElementById('toggleSidebar').style.left = (newWidth + 10) + 'px';
+              document.getElementById('coordinates').style.left = (newWidth + 20) + 'px';
+              map.invalidateSize();
+            }
+          }
+        }
+
+        function stopResize() {
+          isResizing = false;
+          document.removeEventListener('mousemove', resize);
+          document.removeEventListener('mouseup', stopResize);
+        }
+
+        map.on('mousemove', (e) => {
+          updateCoordinates(e.latlng);
+        });
+
+        // 頁面加載時初始化
+        window.onload = function() {
+          updateHistoryList();
+          updateFavoritesList();
+          
+          // 初始化所有區塊為展開狀態
+          document.querySelectorAll('.section-content').forEach(content => {
+            content.classList.add('active');
+          });
+        };
+
+        function addAllHistoryToFavorites() {
+          let added = 0;
+          history.forEach(item => {
+            if (!favorites.some(f => f.name === item.name)) {
+              favorites.push({ ...item });
+              added++;
+            }
+          });
+          if (added > 0) {
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            updateFavoritesList();
+            updateHistoryList();
+            alert('已將所有歷史加入最愛');
+          } else {
+            alert('所有歷史都已在最愛中');
+          }
+        }
+
+        // 新增：地圖點擊新增地點功能
+        function enableAddLocationMode() {
+          addLocationMode = !addLocationMode;
+          const addLocationBtn = document.getElementById('addLocationBtn');
+          if (addLocationMode) {
+            addLocationBtn.textContent = '退出新增模式';
+            addLocationBtn.style.backgroundColor = '#ff4d4d';
+            map.on('mousemove', moveFloatingAddMarker);
+            map.on('click', handleMapClickForAdd);
+            if (!floatingAddMarker) {
+              floatingAddMarker = L.marker(map.getCenter(), { draggable: false, opacity: 0.7, interactive: false }).addTo(map);
+            }
+          } else {
+            addLocationBtn.textContent = '新增地點模式';
+            addLocationBtn.style.backgroundColor = '#4CAF50';
+            map.off('mousemove', moveFloatingAddMarker);
+            map.off('click', handleMapClickForAdd);
+            if (floatingAddMarker) {
+              map.removeLayer(floatingAddMarker);
+              floatingAddMarker = null;
+            }
+          }
+        }
+
+        function moveFloatingAddMarker(e) {
+          if (addLocationMode && floatingAddMarker) {
+            floatingAddMarker.setLatLng(e.latlng);
+          }
+        }
+
+        function handleMapClickForAdd(e) {
+          if (!addLocationMode) return;
+          const latlng = e.latlng;
+          if (floatingAddMarker) {
+            floatingAddMarker.setLatLng(latlng);
+          }
+          const locationName = prompt('請輸入地點名稱：');
+          if (locationName && locationName.trim() !== '') {
+            const newLocation = {
+              name: locationName.trim(),
+              latlng: latlng,
+              countryCode: '',
+              originalQuery: locationName.trim() // 新增地點時，原始資料就是地點名稱
+            };
+            history.unshift(newLocation);
+            localStorage.setItem('searchHistory', JSON.stringify(history));
+            updateHistoryList();
+            // 在地圖上顯示標記
+            const marker = L.marker(latlng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(newLocation.name);
+            marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(newLocation); });
+            map.setView(latlng, 15);
+            updateCoordinates(latlng);
+            alert(`已新增地點：${locationName}`);
+          }
+          // 移除浮動 marker，退出新增模式
+          if (floatingAddMarker) {
+            map.removeLayer(floatingAddMarker);
+            floatingAddMarker = null;
+          }
+          addLocationMode = false;
+          const addLocationBtn = document.getElementById('addLocationBtn');
+          addLocationBtn.textContent = '新增地點模式';
+          addLocationBtn.style.backgroundColor = '#4CAF50';
+          map.off('mousemove', moveFloatingAddMarker);
+          map.off('click', handleMapClickForAdd);
+        }
+
+        // 新增：在地圖上顯示所有歷史地點
+        function showAllHistoryOnMap() {
+          clearMarkers();
+          const bounds = L.latLngBounds();
+          
+          history.forEach((item, index) => {
+            const marker = L.marker(item.latlng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(`${index + 1}. ${item.name}`);
+            marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+            bounds.extend(item.latlng);
+          });
+          
+          if (markers.length > 0) {
+            map.fitBounds(bounds);
+          }
+        }
+
+        // 新增：在地圖上顯示所有最愛地點
+        function showAllFavoritesOnMap() {
+          clearMarkers();
+          const bounds = L.latLngBounds();
+          
+          favorites.forEach((item, index) => {
+            const marker = L.marker(item.latlng).addTo(map);
+            markers.push(marker);
+            marker.bindPopup(`${index + 1}. ${item.name}`);
+            marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(item); });
+            bounds.extend(item.latlng);
+          });
+          
+          if (markers.length > 0) {
+            map.fitBounds(bounds);
+          }
+        }
+
+        // 新增：收合/展開功能
+        function toggleSection(sectionId) {
+          const section = document.getElementById(sectionId);
+          const toggleBtn = section.querySelector('.toggle-btn');
+          const sectionContent = section.querySelector('.section-content');
+
+          if (sectionContent.classList.contains('active')) {
+            sectionContent.classList.remove('active');
+            toggleBtn.textContent = '[+]';
+          } else {
+            sectionContent.classList.add('active');
+            toggleBtn.textContent = '[-]';
+          }
+        }
+
+        // 距離測量修正
+        function enableDistanceMode(forceOff = null) {
+          if (forceOff === true) distanceMode = false;
+          else if (forceOff === false) distanceMode = true;
+          else distanceMode = !distanceMode;
+          const distanceBtn = document.getElementById('distanceBtn');
+          if (!distanceMode) {
+            distanceBtn.textContent = '距離測量模式';
+            distanceBtn.style.backgroundColor = '#4CAF50';
+            map.off('click', handleMapClickForDistance);
+            map.off('mousemove', moveFloatingDistanceLine);
+            clearDistanceMeasurement();
+          } else {
+            distanceBtn.textContent = '退出測量模式';
+            distanceBtn.style.backgroundColor = '#ff4d4d';
+            map.on('click', handleMapClickForDistance);
+            map.on('mousemove', moveFloatingDistanceLine);
+            clearDistanceMeasurement();
+          }
+        }
+
+        // 距離測量：移除2秒自動退出
+        function handleMapClickForDistance(e) {
+          if (!distanceMode) return;
+          const latlng = e.latlng;
+          if (!distanceStartLatLng) {
+            // 設定起點
+            distanceStartLatLng = latlng;
+            const marker = L.marker(latlng).addTo(map);
+            distanceMarkers.push(marker);
+            marker.bindPopup('起點');
+            marker.on('click', function() { marker.openPopup(); });
+          } else {
+            // 終點
+            const marker = L.marker(latlng).addTo(map);
+            distanceMarkers.push(marker);
+            marker.bindPopup('終點');
+            marker.on('click', function() { marker.openPopup(); });
+            // 畫最終線條
+            distancePolyline = L.polyline([distanceStartLatLng, latlng], {
+              color: 'red',
+              weight: 3,
+              opacity: 0.7
+            }).addTo(map);
+            // 顯示距離標籤（小字，無紅框白底）
+            const distance = calculateDistance(distanceStartLatLng, latlng);
+            const midPoint = L.latLng(
+              (distanceStartLatLng.lat + latlng.lat) / 2,
+              (distanceStartLatLng.lng + latlng.lng) / 2
+            );
+            floatingDistanceLabel = L.marker(midPoint, {
+              icon: L.divIcon({
+                className: 'distance-label',
+                html: `<div style=\"background: none; color: #d00; font-size: 13px; font-weight: bold;\">${distance}</div>`,
+                iconSize: [80, 18],
+                iconAnchor: [40, 9]
+              })
+            }).addTo(map);
+            // 不再自動退出，需手動點擊退出
+          }
+        }
+
+        function moveFloatingDistanceLine(e) {
+          if (!distanceMode) return;
+          if (distanceStartLatLng) {
+            const endLatLng = e.latlng;
+            // 畫浮動線條
+            if (floatingDistanceLine) {
+              floatingDistanceLine.setLatLngs([distanceStartLatLng, endLatLng]);
+            } else {
+              floatingDistanceLine = L.polyline([distanceStartLatLng, endLatLng], {
+                color: 'orange',
+                weight: 2,
+                dashArray: '5, 5',
+                opacity: 0.7
+              }).addTo(map);
+            }
+            // 計算距離並顯示浮動標籤（小字）
+            const distance = calculateDistance(distanceStartLatLng, endLatLng);
+            const midPoint = L.latLng(
+              (distanceStartLatLng.lat + endLatLng.lat) / 2,
+              (distanceStartLatLng.lng + endLatLng.lng) / 2
+            );
+            if (floatingDistanceLabel) {
+              floatingDistanceLabel.setLatLng(midPoint);
+              floatingDistanceLabel.setIcon(L.divIcon({
+                className: 'distance-label',
+                html: `<div style=\"background: none; color: #d00; font-size: 13px; font-weight: bold;\">${distance}</div>`,
+                iconSize: [80, 18],
+                iconAnchor: [40, 9]
+              }));
+            } else {
+              floatingDistanceLabel = L.marker(midPoint, {
+                icon: L.divIcon({
+                  className: 'distance-label',
+                  html: `<div style=\"background: none; color: #d00; font-size: 13px; font-weight: bold;\">${distance}</div>`,
+                  iconSize: [80, 18],
+                  iconAnchor: [40, 9]
+                })
+              }).addTo(map);
+            }
+          }
+        }
+
+        function clearDistanceMeasurement() {
+          distanceMarkers.forEach(marker => map.removeLayer(marker));
+          distanceMarkers = [];
+          if (distancePolyline) {
+            map.removeLayer(distancePolyline);
+            distancePolyline = null;
+          }
+          if (floatingDistanceLine) {
+            map.removeLayer(floatingDistanceLine);
+            floatingDistanceLine = null;
+          }
+          if (floatingDistanceLabel) {
+            map.removeLayer(floatingDistanceLabel);
+            floatingDistanceLabel = null;
+          }
+          distanceStartLatLng = null;
+        }
+
+        function calculateDistance(latLng1, latLng2) {
+          const R = 6371; // 地球半徑（公里）
+          const dLat = (latLng2.lat - latLng1.lat) * Math.PI / 180;
+          const dLng = (latLng2.lng - latLng1.lng) * Math.PI / 180;
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(latLng1.lat * Math.PI / 180) * Math.cos(latLng2.lat * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const distance = R * c;
+          
+          if (distance < 1) {
+            return `${(distance * 1000).toFixed(0)} 公尺`;
+          } else {
+            return `${distance.toFixed(2)} 公里`;
+          }
+        }
+
+        // 範圍搜尋修正
+        function enableRangeSearchMode() {
+          rangeSearchMode = !rangeSearchMode;
+          const rangeSearchBtn = document.getElementById('rangeSearchBtn');
+          clearRangeSearch();
+          if (rangeSearchMode) {
+            rangeSearchBtn.textContent = '退出範圍搜尋';
+            rangeSearchBtn.style.backgroundColor = '#ff4d4d';
+            rangeStep = 0;
+            map.on('click', handleMapClickForRangeSearch);
+            map.on('mousemove', moveFloatingRangeCircle);
+          } else {
+            rangeSearchBtn.textContent = '範圍搜尋模式';
+            rangeSearchBtn.style.backgroundColor = '#4CAF50';
+            map.off('click', handleMapClickForRangeSearch);
+            map.off('mousemove', moveFloatingRangeCircle);
+            clearRangeSearch();
+          }
+        }
+
+        // 範圍搜尋：點擊第一點時立即顯示中心點標記
+        function handleMapClickForRangeSearch(e) {
+          if (!rangeSearchMode) return;
+          const latlng = e.latlng;
+          if (rangeStep === 0) {
+            // 選擇中心點
+            rangeCenter = latlng;
+            rangeStep = 1;
+            // 立即顯示中心點標記（強制刷新）
+            if (rangeCenterMarker) {
+              map.removeLayer(rangeCenterMarker);
+              rangeCenterMarker = null;
+            }
+            rangeCenterMarker = L.marker(latlng).addTo(map);
+            rangeCenterMarker.bindPopup('中心點');
+            rangeCenterMarker.on('click', function() { rangeCenterMarker.openPopup(); });
+            map.setView(latlng, map.getZoom()); // 強制刷新地圖
+          } else if (rangeStep === 1) {
+            // 選擇半徑
+            const radiusKm = calculateDistanceInKm(rangeCenter, latlng);
+            if (floatingRangeCircle) {
+              map.removeLayer(floatingRangeCircle);
+              floatingRangeCircle = null;
+            }
+            if (floatingRangeLabel) {
+              map.removeLayer(floatingRangeLabel);
+              floatingRangeLabel = null;
+            }
+            if (rangeCenterMarker) {
+              map.removeLayer(rangeCenterMarker);
+              rangeCenterMarker = null;
+            }
+            rangeCircle = L.circle(rangeCenter, {
+              color: 'blue',
+              fillColor: '#30f',
+              fillOpacity: 0.2,
+              radius: radiusKm * 1000
+            }).addTo(map);
+            searchLocationsInRange(rangeCenter, radiusKm);
+            // 重置狀態
+            rangeStep = 0;
+            rangeSearchMode = false;
+            const rangeSearchBtn = document.getElementById('rangeSearchBtn');
+            rangeSearchBtn.textContent = '範圍搜尋模式';
+            rangeSearchBtn.style.backgroundColor = '#4CAF50';
+            map.off('click', handleMapClickForRangeSearch);
+            map.off('mousemove', moveFloatingRangeCircle);
+          }
+        }
+
+        function moveFloatingRangeCircle(e) {
+          if (!rangeSearchMode || rangeStep !== 1) return;
+          const mouseLatLng = e.latlng;
+          const radiusKm = calculateDistanceInKm(rangeCenter, mouseLatLng);
+          // 畫浮動圓形
+          if (floatingRangeCircle) {
+            floatingRangeCircle.setRadius(radiusKm * 1000);
+          } else {
+            floatingRangeCircle = L.circle(rangeCenter, {
+              color: 'blue',
+              fillColor: '#30f',
+              fillOpacity: 0.1,
+              radius: radiusKm * 1000,
+              interactive: false
+            }).addTo(map);
+          }
+          // 顯示浮動半徑標籤（小字）
+          const midPoint = L.latLng(
+            (rangeCenter.lat + mouseLatLng.lat) / 2,
+            (rangeCenter.lng + mouseLatLng.lng) / 2
+          );
+          const labelText = `半徑: ${radiusKm.toFixed(2)} 公里`;
+          if (floatingRangeLabel) {
+            floatingRangeLabel.setLatLng(midPoint);
+            floatingRangeLabel.setIcon(L.divIcon({
+              className: 'distance-label',
+              html: `<div style=\"background: none; color: #06c; font-size: 13px; font-weight: bold;\">${labelText}</div>`,
+              iconSize: [100, 18],
+              iconAnchor: [50, 9]
+            }));
+          } else {
+            floatingRangeLabel = L.marker(midPoint, {
+              icon: L.divIcon({
+                className: 'distance-label',
+                html: `<div style=\"background: none; color: #06c; font-size: 13px; font-weight: bold;\">${labelText}</div>`,
+                iconSize: [100, 18],
+                iconAnchor: [50, 9]
+              })
+            }).addTo(map);
+          }
+        }
+
+        function clearRangeSearch() {
+          if (rangeCircle) {
+            map.removeLayer(rangeCircle);
+            rangeCircle = null;
+          }
+          if (floatingRangeCircle) {
+            map.removeLayer(floatingRangeCircle);
+            floatingRangeCircle = null;
+          }
+          if (floatingRangeLabel) {
+            map.removeLayer(floatingRangeLabel);
+            floatingRangeLabel = null;
+          }
+          if (rangeCenterMarker) {
+            map.removeLayer(rangeCenterMarker);
+            rangeCenterMarker = null;
+          }
+          rangeCenter = null;
+          rangeStep = 0;
+        }
+
+        function searchLocationsInRange(center, radiusKm) {
+          const locationsInRange = [];
+          
+          // 搜尋歷史記錄
+          history.forEach((item, index) => {
+            const distance = calculateDistanceInKm(center, item.latlng);
+            if (distance <= radiusKm) {
+              locationsInRange.push({
+                ...item,
+                distance: distance,
+                type: 'history',
+                index: index
+              });
+            }
+          });
+          
+          // 搜尋最愛
+          favorites.forEach((item, index) => {
+            const distance = calculateDistanceInKm(center, item.latlng);
+            if (distance <= radiusKm) {
+              locationsInRange.push({
+                ...item,
+                distance: distance,
+                type: 'favorite',
+                index: index
+              });
+            }
+          });
+          
+          // 顯示結果
+          showRangeSearchResults(locationsInRange, center, radiusKm);
+        }
+
+        function calculateDistanceInKm(latLng1, latLng2) {
+          const R = 6371; // 地球半徑（公里）
+          const dLat = (latLng2.lat - latLng1.lat) * Math.PI / 180;
+          const dLng = (latLng2.lng - latLng1.lng) * Math.PI / 180;
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(latLng1.lat * Math.PI / 180) * Math.cos(latLng2.lat * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          return R * c;
+        }
+
+        function showRangeSearchResults(locations, center, radius) {
+          clearMarkers();
+          
+          if (locations.length === 0) {
+            alert(`在 ${radius} 公里範圍內沒有找到任何地點`);
+            return;
+          }
+          
+          // 在地圖上顯示所有範圍內的地點
+          const bounds = L.latLngBounds();
+          let names = [];
+          locations.forEach((location, index) => {
+            const marker = L.marker(location.latlng).addTo(map);
+            markers.push(marker);
+            
+            const popupContent = `${index + 1}. ${location.name}<br>距離: ${location.distance.toFixed(2)} 公里<br>類型: ${location.type === 'history' ? '歷史' : '最愛'}<br>原始資料: ${location.originalQuery || '-'}`;
+            marker.bindPopup(popupContent);
+            marker.on('click', function() { marker.openPopup(); highlightTableRowForLocation(location); });
+            bounds.extend(location.latlng);
+            names.push(`${index + 1}. ${location.name}`);
+          });
+          
+          // 調整地圖視窗
+          map.fitBounds(bounds);
+          
+          // 顯示結果摘要
+          const historyCount = locations.filter(l => l.type === 'history').length;
+          const favoriteCount = locations.filter(l => l.type === 'favorite').length;
+          
+          alert(`在 ${radius} 公里範圍內找到 ${locations.length} 個地點：\n歷史記錄: ${historyCount} 個\n我的最愛: ${favoriteCount} 個\n地點名稱：\n${names.join('\n')}`);
+        }
+
+        function highlightTableRowForLocation(item) {
+          // 查詢歷史
+          const historyRows = document.querySelectorAll('#historyList tbody tr');
+          historyRows.forEach(row => {
+            const lat = parseFloat(row.cells[3].textContent);
+            const lng = parseFloat(row.cells[4].textContent);
+            const mapIcon = row.querySelector('span');
+            if (lat === item.latlng.lat && lng === item.latlng.lng && mapIcon) {
+              mapIcon.classList.add('distance-map-highlight');
+              row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (mapIcon) {
+              mapIcon.classList.remove('distance-map-highlight');
+            }
+          });
+          // 我的最愛
+          const favRows = document.querySelectorAll('#favoritesList tbody tr');
+          favRows.forEach(row => {
+            const lat = parseFloat(row.cells[3].textContent);
+            const lng = parseFloat(row.cells[4].textContent);
+            const mapIcon = row.querySelector('span');
+            if (lat === item.latlng.lat && lng === item.latlng.lng && mapIcon) {
+              mapIcon.classList.add('distance-map-highlight');
+              row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (mapIcon) {
+              mapIcon.classList.remove('distance-map-highlight');
+            }
+          });
+        }
+      </script>
+    </body>
+    </html> 
